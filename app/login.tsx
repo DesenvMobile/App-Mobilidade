@@ -1,13 +1,13 @@
-import { Link } from 'expo-router';
-import React, { useState } from 'react';
+import { Link, router } from 'expo-router';
+import { useState } from 'react';
 import {
-  View,
+  Alert,
+  SafeAreaView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-  Alert,
+  View,
 } from 'react-native';
 
 export default function LoginScreen() {
@@ -15,20 +15,17 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
 
   const handleLogin = () => {
-    // Validação simples para verificar se os campos estão preenchidos
     if (!email || !password) {
       Alert.alert('Erro', 'Por favor, preencha o email e a senha.');
       return;
     }
 
-    // Lógica de autenticação viria aqui
-    // Ex: chamar uma função da sua API, etc.
-    console.log('Email:', email);
-    console.log('Senha:', password);
-
-    Alert.alert('Sucesso', 'Login efetuado! (Simulação)');
-    // Aqui você navegaria para a tela principal, por exemplo:
-    // router.replace('/(tabs)');
+    try {
+      router.replace('/navigation/home');
+    } catch (error) {
+      console.error('Erro ao navegar:', error);
+      Alert.alert('Erro', 'Não foi possível acessar a tela principal.');
+    }
   };
 
   return (
