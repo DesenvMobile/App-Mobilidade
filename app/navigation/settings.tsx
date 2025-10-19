@@ -1,13 +1,11 @@
-import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 export default function SettingsScreen() {
   return (
-    <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.title}>Configurações</Text>
         <Text style={styles.subtitle}>Gerencie suas preferências aqui</Text>
       </View>
-    </SafeAreaView>
   );
 }
 
