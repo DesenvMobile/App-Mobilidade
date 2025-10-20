@@ -223,13 +223,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 14,
     padding: 14,
-    marginHorizontal: 20,
     marginBottom: 18,
     elevation: 3,
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 5,
     shadowOffset: { width: 0, height: 2 },
+    maxWidth: 500,
+    width: '90%',          // largura responsiva
+    alignSelf: 'center',   // centraliza horizontalmente
   },
   occurrenceHeader: {
     alignItems: 'center',
