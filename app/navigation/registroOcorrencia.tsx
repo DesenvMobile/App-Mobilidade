@@ -147,7 +147,17 @@ export default function RegistroOcorrenciaScreen() {
           <TouchableOpacity style={styles.cancelButton}>
             <Text style={styles.cancelText}>Cancelar</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.saveButton}>
+          <TouchableOpacity style={styles.saveButton} 
+          onPress={() => {
+      Alert.alert(
+        "Ocorrência salva!",
+        `✅ Tipo: ${tipoOcorrencia || 'não informado'}
+        📝 Descrição: ${descricao || 'vazio'}
+        📍 Localização: ${localizacao || 'não informada'}
+        🖼️ Imagens: ${imagens.length} selecionada(s)`
+      );
+    }}
+  >
             <Text style={styles.saveText}>Salvar</Text>
           </TouchableOpacity>
         </View>
