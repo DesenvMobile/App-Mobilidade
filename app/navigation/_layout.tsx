@@ -6,9 +6,9 @@ export default function NavigationLayout() {
     <Tabs
       screenOptions={{
         tabBarStyle: {
-          height: 60,
+          height: 64,
           paddingBottom: 8,
-          paddingTop: 8,
+          paddingTop: 2
         },
         tabBarActiveTintColor: '#6200ee',
         headerShown: true,
