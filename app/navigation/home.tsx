@@ -1,7 +1,8 @@
+import { router } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons'; // adicionar import
 import { createClient } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export const supabase = createClient(process.env.EXPO_PUBLIC_SUPABASE_URL!, process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!);
 
@@ -63,7 +64,10 @@ useEffect(() => {
         </View>
         <View style={styles.headerRight}>
           <View style={styles.iconCircle}>
-            <AntDesign name="user" size={20} color="#666" />
+            <TouchableOpacity style={styles.iconCircle}
+            onPress={() => router.push('/dados-pessoais')}>
+                <AntDesign name="user" size={20} color="#666" />
+            </TouchableOpacity>
           </View>
         </View>
       </View>   

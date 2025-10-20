@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { Stack, Tabs } from 'expo-router';
 
 export default function NavigationLayout() {
   return (
@@ -41,6 +41,7 @@ export default function NavigationLayout() {
           ),
         }}
       />
+      <Stack.Screen name="dados-pessoais" options={{ headerShown: false }} />
     </Tabs>
   );
 }
