@@ -33,11 +33,11 @@ export default function NavigationLayout() {
         }}
       />
       <Tabs.Screen
-        name="settings"
+        name="historicoOcorrencias"
         options={{
-          title: 'Configurações',
+          title: 'Histórico',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings" size={size} color={color} />
+            <Ionicons name="reorder-three" size={size} color={color} />
           ),
         }}
       />
