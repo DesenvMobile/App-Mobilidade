@@ -8,30 +8,59 @@ import {
   StyleSheet,
   SafeAreaView,
   Alert,
+  ActivityIndicator, // Importe o ActivityIndicator
 } from 'react-native';
+import { createClient } from '@supabase/supabase-js'; // Importe o createClient
+
+// Inicialize o Supabase (use suas variáveis de ambiente)
+export const supabase = createClient(process.env.EXPO_PUBLIC_SUPABASE_URL!, process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!);
 
 export default function RegisterScreen() {
   const [nomeCompleto, setNomeCompleto] = useState('');
   const [email, setEmail] = useState('');
   const [cpf, setCpf] = useState('');
   const [senha, setSenha] = useState('');
+  const [loading, setLoading] = useState(false); // Estado de loading
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     if (!nomeCompleto || !email || !cpf || !senha) {
       Alert.alert('Erro', 'Por favor, preencha todos os campos.');
       return;
     }
 
-    // Lógica de cadastro viria aqui
-    console.log('Nome:', nomeCompleto);
-    console.log('Email:', email);
-    console.log('CPF:', cpf);
-    console.log('Senha:', senha);
+    setLoading(true);
 
-    Alert.alert('Sucesso', 'Cadastro realizado!');
-    
-    // Redireciona para a tela de login após o cadastro
-    router.replace('/login');
+    try {
+      // 1. Criar o usuário na autenticação do Supabase
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: email,
+        password: senha,
+        options: {
+          data: {
+            nome: nomeCompleto, // Nome exato da coluna na sua tabela Perfil
+            cpf: cpf           // Nome exato da coluna na sua tabela Perfil
+          }
+        }
+      });
+
+      if (authError) {
+        throw authError;
+      }
+
+      if (!authData.user) {
+        throw new Error('Usuário não foi criado, mas não houve erro.');
+      }
+
+      // Se tudo deu certo
+      Alert.alert('Sucesso', 'Cadastro realizado! Por favor, verifique seu e-mail para confirmar a conta.');
+      router.replace('/login'); // Redireciona para login
+
+    } catch (error: any) {
+      console.error('Erro no cadastro:', error.message);
+      Alert.alert('Erro no Cadastro', error.message || 'Não foi possível completar o cadastro.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -63,7 +92,7 @@ export default function RegisterScreen() {
           placeholderTextColor="#888"
           value={cpf}
           onChangeText={setCpf}
-          keyboardType="numeric" // Facilita a digitação de números
+          keyboardType="numeric"
         />
 
         <TextInput
@@ -72,11 +101,19 @@ export default function RegisterScreen() {
           placeholderTextColor="#888"
           value={senha}
           onChangeText={setSenha}
-          secureTextEntry // Esconde a senha
+          secureTextEntry
         />
 
-        <TouchableOpacity style={styles.button} onPress={handleRegister}>
-          <Text style={styles.buttonText}>Cadastrar</Text>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={handleRegister}
+          disabled={loading} // Desabilita o botão durante o loading
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Cadastrar</Text>
+          )}
         </TouchableOpacity>
 
         <View style={styles.linksContainer}>
