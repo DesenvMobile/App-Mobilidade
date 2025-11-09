@@ -1,7 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, Tabs } from 'expo-router';
+import { ActivityIndicator, View } from 'react-native'; // 👈 2. Importe o loading
 
 export default function NavigationLayout() {
+
+  // 6. Se passou tudo, o usuário está logado. Mostre as Tabs.
   return (
     <Tabs
       screenOptions={{

@@ -1,4 +1,4 @@
-import { Link, router } from 'expo-router';
+import { Link } from 'expo-router';
 import React, { useState } from 'react';
 import {
   View,
@@ -8,30 +8,72 @@ import {
   StyleSheet,
   SafeAreaView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
+import { supabase } from './contexts/AuthContext'; // 👈 CORRIGIDO (caminho relativo)
+import { Checkbox } from 'expo-checkbox'; // 👈 NOVO
+import * as Linking from 'expo-linking'; // 👈 NOVO
 
 export default function RegisterScreen() {
   const [nomeCompleto, setNomeCompleto] = useState('');
   const [email, setEmail] = useState('');
   const [cpf, setCpf] = useState('');
   const [senha, setSenha] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false); // 👈 NOVO
 
-  const handleRegister = () => {
+  // 👈 NOVO: Funções para abrir os links
+  const openPrivacyPolicy = () => {
+    // ‼️ SUBSTITUA PELA URL REAL DA SUA POLÍTICA DE PRIVACIDADE
+    Linking.openURL('https://seusite.com/politica-de-privacidade');
+  };
+  const openTermsOfUse = () => {
+    // ‼️ SUBSTITUA PELA URL REAL DOS SEUS TERMOS DE USO
+    Linking.openURL('https://seusite.com/termos-de-uso');
+  };
+
+  const handleRegister = async () => {
     if (!nomeCompleto || !email || !cpf || !senha) {
       Alert.alert('Erro', 'Por favor, preencha todos os campos.');
       return;
     }
 
-    // Lógica de cadastro viria aqui
-    console.log('Nome:', nomeCompleto);
-    console.log('Email:', email);
-    console.log('CPF:', cpf);
-    console.log('Senha:', senha);
+    // 👈 NOVO: Validação da LGPD
+    if (!agreedToTerms) {
+      Alert.alert('Atenção', 'Você deve aceitar os Termos de Uso e a Política de Privacidade para continuar.');
+      return;
+    }
 
-    Alert.alert('Sucesso', 'Cadastro realizado!');
-    
-    // Redireciona para a tela de login após o cadastro
-    router.replace('/login');
+    setLoading(true);
+
+    try {
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: email,
+        password: senha,
+        options: {
+          data: {
+            nome: nomeCompleto,
+            cpf: cpf
+          }
+        }
+      });
+
+      if (authError) {
+        throw authError;
+      }
+
+      if (!authData.user) {
+        throw new Error('Usuário não foi criado, mas não houve erro.');
+      }
+
+      Alert.alert('Sucesso', 'Cadastro realizado! Por favor, verifique seu e-mail para confirmar a conta.');
+
+    } catch (error: any) {
+      console.error('Erro no cadastro:', error.message);
+      Alert.alert('Erro no Cadastro', error.message || 'Não foi possível completar o cadastro.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -63,7 +105,7 @@ export default function RegisterScreen() {
           placeholderTextColor="#888"
           value={cpf}
           onChangeText={setCpf}
-          keyboardType="numeric" // Facilita a digitação de números
+          keyboardType="numeric"
         />
 
         <TextInput
@@ -72,11 +114,41 @@ export default function RegisterScreen() {
           placeholderTextColor="#888"
           value={senha}
           onChangeText={setSenha}
-          secureTextEntry // Esconde a senha
+          secureTextEntry
         />
 
-        <TouchableOpacity style={styles.button} onPress={handleRegister}>
-          <Text style={styles.buttonText}>Cadastrar</Text>
+        {/* 1. 👈 NOVO: Bloco do Checkbox */}
+        <View style={styles.checkboxContainer}>
+          <Checkbox
+            style={styles.checkbox}
+            value={agreedToTerms}
+            onValueChange={setAgreedToTerms}
+            color={agreedToTerms ? '#6200ee' : undefined}
+          />
+          <Text style={styles.checkboxLabel}>
+            Eu li e concordo com os{' '}
+            <Text style={styles.linkTextLGPD} onPress={openTermsOfUse}>
+              Termos de Uso
+            </Text>
+            {' '}e a{' '}
+            <Text style={styles.linkTextLGPD} onPress={openPrivacyPolicy}>
+              Política de Privacidade
+            </Text>
+            .
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          // 2. 👈 ALTERADO: Desabilita o botão se não concordar
+          style={[styles.button, (!agreedToTerms || loading) && styles.buttonDisabled]}
+          onPress={handleRegister}
+          disabled={loading || !agreedToTerms}
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Cadastrar</Text>
+          )}
         </TouchableOpacity>
 
         <View style={styles.linksContainer}>
@@ -138,6 +210,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 10,
   },
+  // 3. 👈 NOVO: Estilo do botão desabilitado
+  buttonDisabled: {
+    backgroundColor: '#ccc',
+  },
   buttonText: {
     color: 'white',
     fontSize: 18,
@@ -151,5 +227,26 @@ const styles = StyleSheet.create({
     color: '#6200ee',
     fontSize: 16,
     marginTop: 10,
+  },
+  // 4. 👈 NOVOS: Estilos para o Checkbox e Links
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 20,
+    marginTop: 5,
+  },
+  checkbox: {
+    marginRight: 10,
+  },
+  checkboxLabel: {
+    flex: 1, // Permite que o texto quebre a linha
+    fontSize: 14,
+    color: '#555',
+  },
+  linkTextLGPD: { // Estilo específico para os links da LGPD
+    color: '#6200ee',
+    textDecorationLine: 'underline',
+    fontWeight: 'bold',
   },
 });

@@ -1,4 +1,4 @@
-import { Link, router } from 'expo-router';
+import { Link } from 'expo-router';
 import { useState } from 'react';
 import {
   Alert,
@@ -8,23 +8,46 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator, // 👈 Adicionado
 } from 'react-native';
+import { supabase } from './contexts/AuthContext';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false); // 👈 Adicionado
 
-  const handleLogin = () => {
+  const handleLogin = async () => { // 👈 Transformado em async
     if (!email || !password) {
       Alert.alert('Erro', 'Por favor, preencha o email e a senha.');
       return;
     }
 
+    setLoading(true); // 👈 Adicionado
+
     try {
-      router.replace('/navigation/home');
-    } catch (error) {
-      console.error('Erro ao navegar:', error);
-      Alert.alert('Erro', 'Não foi possível acessar a tela principal.');
+      // 🚀 Lógica de Login do Supabase
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password,
+      });
+
+      if (error) {
+        throw error; // Joga o erro para o catch
+      }
+
+      // // Se o login for bem-sucedido, navega para a home
+      // router.replace('/navigation/home');
+
+    } catch (error: any) {
+      console.error('Erro no login:', error.message);
+      if (error.message === 'Invalid login credentials') {
+        Alert.alert('Erro', 'Email ou senha inválidos.');
+      } else {
+        Alert.alert('Erro', 'Não foi possível fazer o login.');
+      }
+    } finally {
+      setLoading(false); // 👈 Adicionado
     }
   };
 
@@ -52,8 +75,17 @@ export default function LoginScreen() {
           secureTextEntry // Esconde a senha
         />
 
-        <TouchableOpacity style={styles.button} onPress={handleLogin}>
-          <Text style={styles.buttonText}>Entrar</Text>
+        {/* 👇 Botão atualizado com loading */}
+        <TouchableOpacity
+          style={styles.button}
+          onPress={handleLogin}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Entrar</Text>
+          )}
         </TouchableOpacity>
 
         <View style={styles.linksContainer}>
@@ -65,7 +97,7 @@ export default function LoginScreen() {
 
           <Link href="/recuperar-senha" asChild>
             <TouchableOpacity>
-               <Text style={styles.linkText}>Esqueci a senha</Text>
+              <Text style={styles.linkText}>Esqueci a senha</Text>
             </TouchableOpacity>
           </Link>
         </View>

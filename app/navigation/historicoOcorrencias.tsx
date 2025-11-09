@@ -1,42 +1,108 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Image, Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useOccurrences } from "../contexts/occurrencesContext";
+import { useCallback, useState, useEffect } from 'react'; // 👈 Importe useEffect
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  Platform,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  RefreshControl // 👈 Importe RefreshControl
+} from 'react-native';
+import { useAuth, supabase } from "../contexts/AuthContext"; // 👈 Use o AuthContext
 
+// Interface atualizada para incluir a descrição
 interface Occurrence {
   id: string;
-  type: string;          // tipo da ocorrência
-  imageUrl?: string;     // URL absoluta ou relativa da imagem
+  type: string;
+  description: string; // 👈 Adicionado
+  imageUrl?: string;
   likes: number;
-  status: string;        // Ex: 'Em Análise', 'Concluído'
+  status: string;
 }
 
-const API_BASE = 'https://seu-backend.com/api'; // ajuste
-console.log('Teste')
-console.log(process.env.EXPO_PUBLIC_USE_BACKEND)
-const USE_BACKEND = JSON.parse(process.env.EXPO_PUBLIC_USE_BACKEND!);
-
 export default function HistoricoOcorrenciasScreen() {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Começa como true
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const { occurrences: data, deleteOccurrence } = useOccurrences();
+  const [myOccurrences, setMyOccurrences] = useState<Occurrence[]>([]); // 👈 Estado local
+  const { session } = useAuth(); // 👈 Pega a sessão do usuário
 
+  // Função para buscar APENAS as ocorrências do usuário
+  const fetchMyOccurrences = async () => {
+    if (!session?.user?.id) {
+      setLoading(false);
+      setError("Usuário não autenticado.");
+      return;
+    }
 
+    try {
+      setError(null);
+      const { data, error } = await supabase
+        .from('Ocorrencia')
+        .select('*')
+        .eq('usuario_id', session.user.id) // 👈 O FILTRO MÁGICO!
+        .order('dt_criacao', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data) {
+        // Mapeia os dados do banco para o formato que seu app espera
+        const mappedData: Occurrence[] = data.map((item: any) => ({
+          id: item.id.toString(),
+          type: item.titulo_ocorrencia || 'Sem título',
+          description: item.descricao_ocorrencia || 'Sem descrição', // 👈 Adicionado
+          imageUrl: item.urls_imagens && item.urls_imagens.length > 0 ? item.urls_imagens[0] : undefined,
+          likes: item.likes || 0,
+          status: item.status || 'Em Análise'
+        }));
+        setMyOccurrences(mappedData);
+      }
+    } catch (error: any) {
+      console.error('Erro ao buscar ocorrências:', error.message);
+      setError(error.message);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  // Busca inicial quando a tela carrega
+  useEffect(() => {
+    setLoading(true);
+    fetchMyOccurrences();
+  }, [session]); // Roda sempre que a sessão mudar
+
+  // Função para "Puxar para atualizar"
   const onRefresh = useCallback(() => {
-    setRefreshing(false);
-  }, []);
+    setRefreshing(true);
+    fetchMyOccurrences();
+  }, [session]); // Garante que temos a sessão mais recente
 
-  // const handleLike = async (id: string) => {
-  //   // Otimista
-  //   setData(prev => prev.map(o => o.id === id ? { ...o, likes: o.likes + 1 } : o));
-  //   try {
-  //     await fetch(`${API_BASE}/occurrences/${id}/like`, { method: 'POST' });
-  //   } catch {
-  //     // Reverter se falhar (simplificado)
-  //     setData(prev => prev.map(o => o.id === id ? { ...o, likes: o.likes - 1 } : o));
-  //   }
-  // };
+  // Função local para deletar
+  const deleteOccurrence = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('Ocorrencia')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Atualiza o estado local
+      setMyOccurrences((current) => current.filter((item) => item.id !== id));
+      Alert.alert('Sucesso', 'Ocorrência removida.');
+    } catch (error: any) {
+      console.error('Erro ao deletar:', error.message);
+      Alert.alert('Erro', 'Não foi possível deletar.');
+    }
+  }
 
   function showDeleteAlert(id: string) {
     if (Platform.OS === 'web') {
@@ -62,9 +128,12 @@ export default function HistoricoOcorrenciasScreen() {
         <Text style={styles.typeBadge}>{item.type}</Text>
       </View>
 
+      {/* Descrição adicionada */}
+      <Text style={styles.descriptionText}>{item.description}</Text>
+
       {item.imageUrl ? (
         <Image
-          source={require('../../assets/images/cratera.webp')}
+          source={{ uri: item.imageUrl }} // 👈 Corrigido para usar a URL do item
           style={styles.occurrenceImage}
           resizeMode="cover"
         />
@@ -75,7 +144,7 @@ export default function HistoricoOcorrenciasScreen() {
       )}
 
       <View style={styles.actionsRow}>
-        <TouchableOpacity style={styles.iconButton}>
+        <TouchableOpacity style={styles.iconButton} disabled={true}>
           <Ionicons name="thumbs-up" size={22} color="#1976d2" />
           <Text style={styles.iconCounter}>{item.likes}</Text>
         </TouchableOpacity>
@@ -94,30 +163,33 @@ export default function HistoricoOcorrenciasScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Histórico de Ocorrências</Text>
+        <Text style={styles.cardTitle}>Minhas Ocorrências</Text>
       </View>
+
       {loading && (
         <View style={styles.center}>
           <ActivityIndicator size="large" color="#6200ee" />
         </View>
       )}
+
       {!loading && error && (
         <View style={styles.center}>
           <Text style={styles.errorText}>Erro: {error}</Text>
-          <TouchableOpacity style={styles.retryBtn}>
+          <TouchableOpacity style={styles.retryBtn} onPress={fetchMyOccurrences}>
             <Text style={styles.retryText}>Tentar novamente</Text>
           </TouchableOpacity>
         </View>
       )}
+
       {!loading && !error && (
         <FlatList
-          data={data}
+          data={myOccurrences} // 👈 Corrigido para usar o estado local
           keyExtractor={item => item.id}
           renderItem={renderItem}
-          contentContainerStyle={data.length === 0 ? styles.emptyContainer : undefined}
+          contentContainerStyle={myOccurrences.length === 0 ? styles.emptyContainer : styles.listContainer}
           refreshing={refreshing}
-          onRefresh={onRefresh}
-          ListEmptyComponent={<Text style={styles.emptyText}>Nenhuma ocorrência ainda.</Text>}
+          onRefresh={onRefresh} // 👈 Corrigido para usar a função certa
+          ListEmptyComponent={<Text style={styles.emptyText}>Você ainda não registrou ocorrências.</Text>}
         />
       )}
     </SafeAreaView>
@@ -128,7 +200,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-    padding: 16
+  },
+  listContainer: { // 👈 Adicionado para padding
+    padding: 16,
   },
   card: {
     backgroundColor: '#ffffff',
@@ -160,13 +234,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 5,
     shadowOffset: { width: 0, height: 2 },
-    maxWidth: 500,
-    width: '90%',          // largura responsiva
-    alignSelf: 'center',   // centraliza horizontalmente
   },
   occurrenceHeader: {
-    alignItems: 'center',
+    alignItems: 'flex-start', // 👈 Alinhado à esquerda
     marginBottom: 10,
+  },
+  descriptionText: { // 👈 Adicionado
+    fontSize: 14,
+    color: '#555',
+    marginBottom: 12,
+    lineHeight: 20,
   },
   typeBadge: {
     paddingHorizontal: 16,
@@ -178,6 +255,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
     fontWeight: '600',
+    alignSelf: 'flex-start', // 👈 Garante que ele não estique
   },
   occurrenceImage: {
     width: '100%',
@@ -187,12 +265,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   imagePlaceholder: { justifyContent: 'center', alignItems: 'center' },
-  actionsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
+  actionsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, // 👈 Alterado para 'space-between'
   iconButton: { flexDirection: 'row', alignItems: 'center' },
   iconCounter: { marginLeft: 4, fontSize: 13, fontWeight: '600', color: '#1976d2' },
   statusBadge: {
-    paddingHorizontal: 26,
-    paddingVertical: 10,
+    paddingHorizontal: 12, // 👈 Diminuído
+    paddingVertical: 8,  // 👈 Diminuído
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#ccc',
@@ -208,6 +286,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   retryText: { color: '#fff', fontWeight: '600' },
-  emptyContainer: { flexGrow: 1, justifyContent: 'center', alignItems: 'center' },
+  emptyContainer: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 50 },
   emptyText: { color: '#777', fontSize: 15 },
 });

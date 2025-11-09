@@ -1,108 +1,135 @@
-import { router } from 'expo-router';
-import { AntDesign } from '@expo/vector-icons'; // adicionar import
-import { createClient } from '@supabase/supabase-js';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-
-export const supabase = createClient(process.env.EXPO_PUBLIC_SUPABASE_URL!, process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!);
+import { AntDesign, Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  RefreshControl,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+// 1. Importe a nova função do contexto
+import { useOccurrences, Occurrence } from '../contexts/occurrencesContext';
+// 2. 🛑 REMOVA O IMPORT DUPLICADO DO SUPABASE
+// import { supabase } from '../contexts/AuthContext'; 
 
 export default function HomeScreen() {
-  const [posts, setPosts] = useState<Array<{ image?: string; description?: string; likes?: number }> | null>(null);
-  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  // 3. Puxe a nova função 'optimisticallyToggleLike'
+  const {
+    occurrences,
+    loading: contextLoading,
+    refreshOccurrences,
+    optimisticallyToggleLike // 👈 PUXE AQUI
+  } = useOccurrences();
 
+  const [refreshing, setRefreshing] = useState(false);
 
-useEffect(() => {
-  const fetchPosts = async () => {
-    setLoading(true);
-    try {
-      console.log('[fetchPosts] iniciando...');
-      const { data, error, status } = await supabase
-        .from('publicacao')
-        .select('url_imagem, descricao, likes'); // ou .select('*')
-
-      console.log('[fetchPosts] status:', status);
-      console.log('[fetchPosts] error:', error);
-      console.log('[fetchPosts] data (raw):', data);
-
-      if (error) {
-        console.error('[fetchPosts] erro do supabase:', error);
-        setPosts([]);
-        return;
-      }
-
-      if (!data || (Array.isArray(data) && data.length === 0)) {
-        console.log('[fetchPosts] sem dados retornados.');
-        setPosts([]);
-        return;
-      }
-
-      const mapped = (data as Array<any>).map(item => ({
-        // Corrigindo o nome do campo para url_imagem
-        image: item.url_imagem || null, // adicionar fallback para null
-        description: item.descricao,
-        likes: item.likes,
-      }));
-      setPosts(mapped);
-    } catch (e) {
-      console.error('[fetchPosts] exceção:', e);
-      setPosts([]);
-    } finally {
-      setLoading(false);
-    }
+  // 4. 🛑 REMOVA A FUNÇÃO 'handleLike' ANTIGA
+  /*
+  const handleLike = async (id: string) => {
+    // ...toda a lógica antiga foi movida para o contexto
   };
-  fetchPosts();
-}, []);
+  */
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refreshOccurrences();
+    setRefreshing(false);
+  }, []);
 
+  const renderItem = ({ item }: { item: Occurrence }) => {
+
+    // 5. ✅ Lógica dos ícones corrigida
+    const isLiked = item.user_has_liked;
+    // 'like1' é o preenchido, 'like2' é o contorno
+    const likeIconName = isLiked ? 'like1' : 'like2';
+    const likeColor = isLiked ? '#3b82f6' : '#666';
+
+    return (
+      <View style={styles.card}>
+        <View style={styles.cardImage}>
+          {item.imageUrl ? (
+            <Image source={{ uri: item.imageUrl }} style={styles.image} resizeMode="cover" />
+          ) : (
+            <View style={[styles.image, styles.imagePlaceholder]}>
+              <Ionicons name="image-outline" size={50} color="#ccc" />
+            </View>
+          )}
+        </View>
+
+        <View style={styles.cardFooter}>
+          <Text style={styles.cardType} numberOfLines={1}>{item.type}</Text>
+          <Text style={styles.cardDescription} numberOfLines={2}>
+            {item.description ?? 'Sem descrição.'}
+          </Text>
+
+          <View style={styles.actionsRow}>
+            {/* 6. ✅ Use a nova função e o nome do ícone dinâmico */}
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => optimisticallyToggleLike(item.id)}
+            >
+              <AntDesign name="like" size={20} color={likeColor} />
+              <Text style={[styles.actionText, { color: likeColor }]}>{item.likes ?? 0}</Text>
+            </TouchableOpacity>
+
+            <View style={styles.statusBadge}>
+              <Text style={styles.statusText}>{item.status}</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  // --- RENDER PRINCIPAL (Sem alterações) ---
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft} />
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Arruma Ai</Text>
         </View>
         <View style={styles.headerRight}>
-          <View style={styles.iconCircle}>
-            <TouchableOpacity style={styles.iconCircle}
-            onPress={() => router.push('/dados-pessoais')}>
-                <AntDesign name="user" size={20} color="#666" />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.iconCircle}
+            onPress={() => router.push('/dados-pessoais')}
+          >
+            <AntDesign name="user" size={20} color="#666" />
+          </TouchableOpacity>
         </View>
-      </View>   
+      </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {loading ? (
-          <ActivityIndicator size="large" color="#999" style={{ marginTop: 40 }} />
-        ) : posts && posts.length > 0 ? (
-          posts.map((post, idx) => (
-            <View style={styles.card} key={idx}>
-              <View style={styles.cardImage}>
-                {post.image ? (
-                  <Image source={{ uri: post.image }} style={styles.image} />
-                ) : (
-                  <View style={{ width: '100%', height: '100%', backgroundColor: '#DDD', justifyContent: 'center', alignItems: 'center' }}>
-                    <Text style={{ color: '#888' }}>Nenhuma imagem</Text>
-                  </View>
-                )}
-              </View>
-              <View style={styles.cardFooter}>
-                <View style={styles.likes}>
-                  <AntDesign name="heart" size={18} color="#3b82f6" style={{ marginRight: 8 }} />
-                  <Text style={styles.likesText}>{post.likes ?? 0}</Text>
-                </View>
-                <Text style={styles.cardDescription} numberOfLines={2}>
-                  {post.description ?? 'Sem descrição.'}
-                </Text>
-              </View>
-            </View>
-          ))
-        ) : (
-          <Text style={{ textAlign: 'center', marginTop: 40, color: '#888' }}>Nenhum post encontrado.</Text>
-        )}
-        <View style={{ height: 90 }} />
-      </ScrollView>
+      {contextLoading && occurrences.length === 0 ? (
+        <ActivityIndicator size="large" color="#6200ee" style={{ marginTop: 40 }} />
+      ) : (
+        <FlatList
+          data={occurrences}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#6200ee']}
+            />
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+          <Ionicons name="document-text-outline" size={60} color="#ccc" />
+          <Text style={styles.emptyText}>Nenhuma ocorrência registrada.</Text>
+        </View>
+}
+ />
+ )}
     </SafeAreaView>
   );
 }
@@ -113,10 +140,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#F6F6F6',
   },
   header: {
-    height: 64,
+    height: 60,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
+    backgroundColor: '#FFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEE',
   },
   headerLeft: {
     width: 40,
@@ -133,58 +163,99 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#EEE',
-    justifyContent: 'center', // centralizar ícone
-    alignItems: 'center',     // centralizar ícone
+    backgroundColor: '#F0F0F0',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#111',
+    fontWeight: 'bold',
+    color: '#333',
   },
-
   content: {
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 16,
+    paddingBottom: 90,
   },
-
   card: {
     backgroundColor: '#FFF',
     borderRadius: 12,
     overflow: 'hidden',
-    marginBottom: 12,
+    marginBottom: 16,
     shadowColor: '#000',
     shadowOpacity: 0.06,
     shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
   cardImage: {
-    height: 200, // altura fixa um pouco maior
+    height: 220,
     backgroundColor: '#EEE',
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden', // garante que a imagem não vaze
+    overflow: 'hidden',
   },
   image: {
     width: '100%',
     height: '100%',
-    resizeMode: 'contain', // mudando para contain ao invés de cover
-    backgroundColor: '#f8f8f8', // fundo suave para imagens menores
+  },
+  imagePlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   cardFooter: {
-    padding: 12,
+    padding: 14,
   },
-  likes: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  likesText: {
-    color: '#3b82f6',
-    fontWeight: '600',
+  cardType: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#222',
+    marginBottom: 4,
   },
   cardDescription: {
-    color: '#444',
+    color: '#666',
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F5F5F5',
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  actionText: {
+    fontWeight: '600',
+    marginLeft: 6,
+    fontSize: 14,
+  },
+  statusBadge: {
+    backgroundColor: '#FFC107',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#FFF',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 60,
+    opacity: 0.6,
+  },
+  emptyText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#666',
+    marginTop: 16,
   },
 });
