@@ -13,87 +13,84 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-// 1. ✅ Importe o Contexto de Ocorrências
+// 1. Importe a nova função do contexto
 import { useOccurrences, Occurrence } from '../contexts/occurrencesContext';
-// 2. ✅ Importe o Supabase central do AuthContext
-import { supabase } from '../contexts/AuthContext';
+// 2. 🛑 REMOVA O IMPORT DUPLICADO DO SUPABASE
+// import { supabase } from '../contexts/AuthContext'; 
 
 export default function HomeScreen() {
   const router = useRouter();
-  // 3. ✅ Use os dados do Contexto
-  const { occurrences, loading: contextLoading, refreshOccurrences } = useOccurrences();
+  // 3. Puxe a nova função 'optimisticallyToggleLike'
+  const {
+    occurrences,
+    loading: contextLoading,
+    refreshOccurrences,
+    optimisticallyToggleLike // 👈 PUXE AQUI
+  } = useOccurrences();
+
   const [refreshing, setRefreshing] = useState(false);
 
-  // 4. ✅ Adiciona a função de Like
+  // 4. 🛑 REMOVA A FUNÇÃO 'handleLike' ANTIGA
+  /*
   const handleLike = async (id: string) => {
-    try {
-      // Chama a função SQL 'increment_like' que criamos no Supabase
-      const { error } = await supabase.rpc('increment_like', {
-        ocorrencia_id_param: id
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      // Atualiza a lista localmente após o sucesso
-      refreshOccurrences();
-
-    } catch (error: any) {
-      console.error("Erro ao curtir:", error.message);
-      Alert.alert('Erro', 'Não foi possível registrar seu like.');
-    }
+    // ...toda a lógica antiga foi movida para o contexto
   };
+  */
 
-  // 5. ✅ Adiciona a função de "Puxar para atualizar"
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await refreshOccurrences(); // Recarrega os dados do contexto
+    await refreshOccurrences();
     setRefreshing(false);
   }, []);
 
-  // 6. ✅ Renderiza cada item do feed
-  const renderItem = ({ item }: { item: Occurrence }) => (
-    <View style={styles.card}>
-      {/* Imagem */}
-      <View style={styles.cardImage}>
-        {item.imageUrl ? (
-          <Image source={{ uri: item.imageUrl }} style={styles.image} resizeMode="cover" />
-        ) : (
-          <View style={[styles.image, styles.imagePlaceholder]}>
-            <Ionicons name="image-outline" size={50} color="#ccc" />
-          </View>
-        )}
-      </View>
+  const renderItem = ({ item }: { item: Occurrence }) => {
 
-      {/* Conteúdo (Tipo, Descrição, Likes) */}
-      <View style={styles.cardFooter}>
-        <Text style={styles.cardType} numberOfLines={1}>{item.type}</Text>
-        <Text style={styles.cardDescription} numberOfLines={2}>
-          {item.description ?? 'Sem descrição.'}
-        </Text>
+    // 5. ✅ Lógica dos ícones corrigida
+    const isLiked = item.user_has_liked;
+    // 'like1' é o preenchido, 'like2' é o contorno
+    const likeIconName = isLiked ? 'like1' : 'like2';
+    const likeColor = isLiked ? '#3b82f6' : '#666';
 
-        <View style={styles.actionsRow}>
-          {/* Botão de Like */}
-          <TouchableOpacity style={styles.actionButton} onPress={() => handleLike(item.id)}>
-            <AntDesign name="like" size={20} color="#3b82f6" />
-            <Text style={styles.actionText}>{item.likes ?? 0}</Text>
-          </TouchableOpacity>
-
-          {/* Status */}
-          <View style={styles.statusBadge}>
-            <Text style={styles.statusText}>{item.status}</Text>
-          </View>
+    return (
+      <View style={styles.card}>
+        <View style={styles.cardImage}>
+          {item.imageUrl ? (
+            <Image source={{ uri: item.imageUrl }} style={styles.image} resizeMode="cover" />
+          ) : (
+            <View style={[styles.image, styles.imagePlaceholder]}>
+              <Ionicons name="image-outline" size={50} color="#ccc" />
+            </View>
+          )}
         </View>
 
-      </View>
-    </View>
-  );
+        <View style={styles.cardFooter}>
+          <Text style={styles.cardType} numberOfLines={1}>{item.type}</Text>
+          <Text style={styles.cardDescription} numberOfLines={2}>
+            {item.description ?? 'Sem descrição.'}
+          </Text>
 
-  // --- RENDER PRINCIPAL ---
+          <View style={styles.actionsRow}>
+            {/* 6. ✅ Use a nova função e o nome do ícone dinâmico */}
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => optimisticallyToggleLike(item.id)}
+            >
+              <AntDesign name="like" size={20} color={likeColor} />
+              <Text style={[styles.actionText, { color: likeColor }]}>{item.likes ?? 0}</Text>
+            </TouchableOpacity>
+
+            <View style={styles.statusBadge}>
+              <Text style={styles.statusText}>{item.status}</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  // --- RENDER PRINCIPAL (Sem alterações) ---
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft} />
         <View style={styles.headerCenter}>
@@ -127,12 +124,12 @@ export default function HomeScreen() {
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Ionicons name="document-text-outline" size={60} color="#ccc" />
-              <Text style={styles.emptyText}>Nenhuma ocorrência registrada.</Text>
-            </View>
-          }
-        />
-      )}
+          <Ionicons name="document-text-outline" size={60} color="#ccc" />
+          <Text style={styles.emptyText}>Nenhuma ocorrência registrada.</Text>
+        </View>
+}
+ />
+ )}
     </SafeAreaView>
   );
 }
@@ -178,7 +175,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 90, // Espaço para a barra de tabs
+    paddingBottom: 90,
   },
   card: {
     backgroundColor: '#FFF',
@@ -234,7 +231,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   actionText: {
-    color: '#3b82f6',
     fontWeight: '600',
     marginLeft: 6,
     fontSize: 14,
