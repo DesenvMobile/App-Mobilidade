@@ -1,8 +1,14 @@
 import { AntDesign } from '@expo/vector-icons';
-import React, { useState, useEffect } from 'react'; // 👈 Importe useEffect
+import { decode } from 'base64-arraybuffer';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react'; // 👈 Importe useEffect
 import {
+  ActivityIndicator,
   Alert,
-  Image,
+  Image, // 👈 Importe ActivityIndicator
+  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -10,9 +16,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  ActivityIndicator, // 👈 Importe ActivityIndicator
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { supabase } from './contexts/AuthContext'; // 👈 Importe o supabase do AuthContext
 
 export default function ProfileScreen() {
@@ -25,6 +29,8 @@ export default function ProfileScreen() {
   const [password, setPassword] = useState(''); // Para a nova senha
   const [loading, setLoading] = useState(true); // Para carregar os dados iniciais
   const [saving, setSaving] = useState(false); // Para o botão de salvar
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null); // URL da foto de perfil
+  const [uploadingAvatar, setUploadingAvatar] = useState(false); // loading de upload
 
   // --- BUSCAR DADOS ---
   useEffect(() => {
@@ -40,7 +46,7 @@ export default function ProfileScreen() {
         // 2. Pega os dados do perfil (tabela Perfil)
         const { data: profileData, error: profileError } = await supabase
           .from('Perfil')
-          .select('nome, cpf') // Puxa nome e cpf
+          .select('nome, cpf, avatar_url') // Puxa nome, cpf e avatar
           .eq('id', user.id) // Onde o id é o mesmo do usuário logado
           .single(); // Espera apenas um resultado
 
@@ -49,6 +55,7 @@ export default function ProfileScreen() {
         } else if (profileData) {
           setNome(profileData.nome || '');
           setCpf(profileData.cpf || '');
+          setAvatarUrl(profileData.avatar_url || null);
         }
       } catch (error: any) {
         console.error("Erro ao buscar dados do usuário:", error.message);
@@ -113,6 +120,78 @@ export default function ProfileScreen() {
     }
   };
 
+  // --- AVATAR UPLOAD ---
+  const pickAndUploadAvatar = async () => {
+    try {
+      // Pede permissão à galeria
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permissão negada', 'Conceda acesso às fotos para atualizar seu avatar.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.9,
+        selectionLimit: 1,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return;
+      }
+      const asset = result.assets[0];
+      setUploadingAvatar(true);
+
+      // Lê o arquivo e prepara upload
+      const fileName = `avatar-${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
+      let uploadData: ArrayBuffer | Blob;
+      let contentType = 'image/jpeg';
+
+      if (Platform.OS === 'web') {
+        const response = await fetch(asset.uri);
+        const blob = await response.blob();
+        uploadData = blob;
+        contentType = blob.type || 'image/jpeg';
+      } else {
+        const base64 = await FileSystem.readAsStringAsync(asset.uri, { encoding: 'base64' });
+        uploadData = decode(base64);
+      }
+
+      // Faz upload no bucket (assumindo que exista 'perfil-imagens')
+      const { data: uploadRes, error: uploadError } = await supabase.storage
+        .from('perfil-imagens')
+        .upload(fileName, uploadData, { contentType, upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Obtém URL pública
+      const { data: publicData } = supabase.storage
+        .from('perfil-imagens')
+        .getPublicUrl(uploadRes.path);
+
+      const publicUrl = publicData.publicUrl;
+
+      // Atualiza tabela Perfil
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Sessão expirada');
+      const { error: updateError } = await supabase
+        .from('Perfil')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      setAvatarUrl(publicUrl);
+      Alert.alert('Avatar atualizado!', 'Sua foto de perfil foi alterada.');
+    } catch (e: any) {
+      console.error('Erro ao atualizar avatar:', e.message);
+      Alert.alert('Erro', 'Não foi possível atualizar a foto.');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
   // --- RENDER ---
 
   // Mostra um loading full-screen enquanto busca os dados
@@ -140,12 +219,20 @@ export default function ProfileScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Profile Image */}
+        {/* Profile Image (clicável) */}
         <View style={styles.profileImageContainer}>
-          <Image
-            source={{ uri: 'https://placehold.co/100x100/EFEFEF/333?text=Foto' }}
-            style={styles.profileImage}
-          />
+          <TouchableOpacity onPress={pickAndUploadAvatar} activeOpacity={0.8} style={styles.avatarWrapper}>
+            <Image
+              source={{ uri: avatarUrl || 'https://placehold.co/100x100/EFEFEF/333?text=Foto' }}
+              style={styles.profileImage}
+            />
+            {uploadingAvatar && (
+              <View style={styles.avatarUploadingOverlay}>
+                <ActivityIndicator color="#fff" />
+              </View>
+            )}
+          </TouchableOpacity>
+          <Text style={styles.avatarHint}>Toque na foto para alterar</Text>
         </View>
 
         {/* Form */}
@@ -266,6 +353,25 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 8,
+  },
+  avatarWrapper: {
+    position: 'relative',
+  },
+  avatarUploadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarHint: {
+    marginTop: 10,
+    fontSize: 13,
+    color: '#777',
   },
   form: {
     width: '100%',
