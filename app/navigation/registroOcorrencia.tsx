@@ -1,5 +1,6 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { createClient } from '@supabase/supabase-js';
+// 1. 🛑 REMOVA A CRIAÇÃO DO CLIENTE DAQUI
+// import { createClient } from '@supabase/supabase-js';
 import { decode } from 'base64-arraybuffer';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
@@ -23,9 +24,16 @@ import {
 } from 'react-native';
 import DropDownPicker from 'react-native-dropdown-picker';
 
-export const supabase = createClient(process.env.EXPO_PUBLIC_SUPABASE_URL!, process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!);
+// 2. ✅ IMPORTE O CLIENTE ÚNICO DO SEU CONTEXTO
+import { supabase } from '../contexts/AuthContext';
+
+// 🛑 REMOVA A INICIALIZAÇÃO DUPLICADA
+// export const supabase = createClient(...);
 
 export default function RegistroOcorrenciaScreen() {
+  // ... (O RESTO DO SEU CÓDIGO ESTÁ PERFEITO) ...
+  // ... (A LÓGICA 'handleSalvar' VAI USAR O CLIENTE IMPORTADO) ...
+  // ... (O JSX NÃO MUDA NADA) ...
   const [tipoOcorrencia, setTipoOcorrencia] = useState(null);
   const [descricao, setDescricao] = useState('');
   const [imagens, setImagens] = useState<string[]>([]);
@@ -393,7 +401,7 @@ export default function RegistroOcorrenciaScreen() {
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     <TouchableOpacity
                       style={[styles.modalButton, { backgroundColor: '#e53935' }]}
-                      onPress={() => setModalVisivel(false)}
+                       onPress={() => setModalVisivel(false)}
                     >
                       <Text style={styles.modalButtonText}>Cancelar</Text>
                     </TouchableOpacity>
@@ -437,7 +445,7 @@ const styles = StyleSheet.create({
   picker: { width: '100%', height: 50, color: '#333' },
   textArea: {
     width: '100%', minHeight: 100, borderWidth: 1, borderColor: '#ddd', borderRadius: 8,
-    paddingHorizontal: 15, paddingVertical: 10, marginBottom: 15, fontSize: 16, textAlignVertical: 'top',
+   paddingHorizontal: 15, paddingVertical: 10, marginBottom: 15, fontSize: 16, textAlignVertical: 'top',
     backgroundColor: '#fafafa',
   },
   attachButton: { flexDirection: 'row', alignItems: 'center', width: '100%', height: 45, borderWidth: 1, borderColor: '#ddd', borderRadius: 8, paddingHorizontal: 15, marginBottom: 12, justifyContent: 'space-between', backgroundColor: '#fafafa' },

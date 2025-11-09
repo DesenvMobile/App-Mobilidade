@@ -1,4 +1,4 @@
-import { Link, router } from 'expo-router';
+import { Link } from 'expo-router';
 import { useState } from 'react';
 import {
   Alert,
@@ -10,10 +10,7 @@ import {
   View,
   ActivityIndicator, // 👈 Adicionado
 } from 'react-native';
-import { createClient } from '@supabase/supabase-js'; // 👈 Adicionado
-
-// Inicialize o Supabase
-export const supabase = createClient(process.env.EXPO_PUBLIC_SUPABASE_URL!, process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!);
+import { supabase } from './contexts/AuthContext';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -39,8 +36,8 @@ export default function LoginScreen() {
         throw error; // Joga o erro para o catch
       }
 
-      // Se o login for bem-sucedido, navega para a home
-      router.replace('/navigation/home');
+      // // Se o login for bem-sucedido, navega para a home
+      // router.replace('/navigation/home');
 
     } catch (error: any) {
       console.error('Erro no login:', error.message);

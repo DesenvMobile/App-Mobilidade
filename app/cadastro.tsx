@@ -1,4 +1,4 @@
-import { Link, router } from 'expo-router';
+import { Link, router } from 'expo-router'; // Remova o 'router'
 import React, { useState } from 'react';
 import {
   View,
@@ -8,19 +8,23 @@ import {
   StyleSheet,
   SafeAreaView,
   Alert,
-  ActivityIndicator, // Importe o ActivityIndicator
+  ActivityIndicator,
 } from 'react-native';
-import { createClient } from '@supabase/supabase-js'; // Importe o createClient
+// 1. 🛑 REMOVA A CRIAÇÃO DO CLIENTE DAQUI
+// import { createClient } from '@supabase/supabase-js'; 
 
-// Inicialize o Supabase (use suas variáveis de ambiente)
-export const supabase = createClient(process.env.EXPO_PUBLIC_SUPABASE_URL!, process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!);
+// 2. ✅ IMPORTE O CLIENTE ÚNICO DO SEU CONTEXTO
+import { supabase } from './contexts/AuthContext';
+
+// 🛑 REMOVA A INICIALIZAÇÃO DUPLICADA
+// export const supabase = createClient(...);
 
 export default function RegisterScreen() {
   const [nomeCompleto, setNomeCompleto] = useState('');
   const [email, setEmail] = useState('');
   const [cpf, setCpf] = useState('');
   const [senha, setSenha] = useState('');
-  const [loading, setLoading] = useState(false); // Estado de loading
+  const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
     if (!nomeCompleto || !email || !cpf || !senha) {
@@ -31,14 +35,14 @@ export default function RegisterScreen() {
     setLoading(true);
 
     try {
-      // 1. Criar o usuário na autenticação do Supabase
+      // 3. Esta função agora usa o cliente CORRETO
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email,
         password: senha,
         options: {
           data: {
-            nome: nomeCompleto, // Nome exato da coluna na sua tabela Perfil
-            cpf: cpf           // Nome exato da coluna na sua tabela Perfil
+            nome: nomeCompleto,
+            cpf: cpf
           }
         }
       });
@@ -51,9 +55,10 @@ export default function RegisterScreen() {
         throw new Error('Usuário não foi criado, mas não houve erro.');
       }
 
-      // Se tudo deu certo
       Alert.alert('Sucesso', 'Cadastro realizado! Por favor, verifique seu e-mail para confirmar a conta.');
-      router.replace('/login'); // Redireciona para login
+
+      // 4. 🛑 REMOVA A NAVEGAÇÃO DAQUI
+      // router.replace('/login'); 
 
     } catch (error: any) {
       console.error('Erro no cadastro:', error.message);
@@ -64,6 +69,7 @@ export default function RegisterScreen() {
   };
 
   return (
+    // ... (SEU JSX CONTINUA O MESMO - NÃO MUDA NADA AQUI) ...
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.title}>Cadastro</Text>
@@ -107,7 +113,7 @@ export default function RegisterScreen() {
         <TouchableOpacity
           style={styles.button}
           onPress={handleRegister}
-          disabled={loading} // Desabilita o botão durante o loading
+          disabled={loading}
         >
           {loading ? (
             <ActivityIndicator size="small" color="#fff" />
