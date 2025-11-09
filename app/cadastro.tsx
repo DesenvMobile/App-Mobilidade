@@ -1,4 +1,4 @@
-import { Link, router } from 'expo-router'; // Remova o 'router'
+import { Link } from 'expo-router';
 import React, { useState } from 'react';
 import {
   View,
@@ -10,14 +10,9 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-// 1. 🛑 REMOVA A CRIAÇÃO DO CLIENTE DAQUI
-// import { createClient } from '@supabase/supabase-js'; 
-
-// 2. ✅ IMPORTE O CLIENTE ÚNICO DO SEU CONTEXTO
-import { supabase } from './contexts/AuthContext';
-
-// 🛑 REMOVA A INICIALIZAÇÃO DUPLICADA
-// export const supabase = createClient(...);
+import { supabase } from './contexts/AuthContext'; // 👈 CORRIGIDO (caminho relativo)
+import { Checkbox } from 'expo-checkbox'; // 👈 NOVO
+import * as Linking from 'expo-linking'; // 👈 NOVO
 
 export default function RegisterScreen() {
   const [nomeCompleto, setNomeCompleto] = useState('');
@@ -25,6 +20,17 @@ export default function RegisterScreen() {
   const [cpf, setCpf] = useState('');
   const [senha, setSenha] = useState('');
   const [loading, setLoading] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false); // 👈 NOVO
+
+  // 👈 NOVO: Funções para abrir os links
+  const openPrivacyPolicy = () => {
+    // ‼️ SUBSTITUA PELA URL REAL DA SUA POLÍTICA DE PRIVACIDADE
+    Linking.openURL('https://seusite.com/politica-de-privacidade');
+  };
+  const openTermsOfUse = () => {
+    // ‼️ SUBSTITUA PELA URL REAL DOS SEUS TERMOS DE USO
+    Linking.openURL('https://seusite.com/termos-de-uso');
+  };
 
   const handleRegister = async () => {
     if (!nomeCompleto || !email || !cpf || !senha) {
@@ -32,10 +38,15 @@ export default function RegisterScreen() {
       return;
     }
 
+    // 👈 NOVO: Validação da LGPD
+    if (!agreedToTerms) {
+      Alert.alert('Atenção', 'Você deve aceitar os Termos de Uso e a Política de Privacidade para continuar.');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // 3. Esta função agora usa o cliente CORRETO
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email,
         password: senha,
@@ -57,9 +68,6 @@ export default function RegisterScreen() {
 
       Alert.alert('Sucesso', 'Cadastro realizado! Por favor, verifique seu e-mail para confirmar a conta.');
 
-      // 4. 🛑 REMOVA A NAVEGAÇÃO DAQUI
-      // router.replace('/login'); 
-
     } catch (error: any) {
       console.error('Erro no cadastro:', error.message);
       Alert.alert('Erro no Cadastro', error.message || 'Não foi possível completar o cadastro.');
@@ -69,7 +77,6 @@ export default function RegisterScreen() {
   };
 
   return (
-    // ... (SEU JSX CONTINUA O MESMO - NÃO MUDA NADA AQUI) ...
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.title}>Cadastro</Text>
@@ -110,10 +117,32 @@ export default function RegisterScreen() {
           secureTextEntry
         />
 
+        {/* 1. 👈 NOVO: Bloco do Checkbox */}
+        <View style={styles.checkboxContainer}>
+          <Checkbox
+            style={styles.checkbox}
+            value={agreedToTerms}
+            onValueChange={setAgreedToTerms}
+            color={agreedToTerms ? '#6200ee' : undefined}
+          />
+          <Text style={styles.checkboxLabel}>
+            Eu li e concordo com os{' '}
+            <Text style={styles.linkTextLGPD} onPress={openTermsOfUse}>
+              Termos de Uso
+            </Text>
+            {' '}e a{' '}
+            <Text style={styles.linkTextLGPD} onPress={openPrivacyPolicy}>
+              Política de Privacidade
+            </Text>
+            .
+          </Text>
+        </View>
+
         <TouchableOpacity
-          style={styles.button}
+          // 2. 👈 ALTERADO: Desabilita o botão se não concordar
+          style={[styles.button, (!agreedToTerms || loading) && styles.buttonDisabled]}
           onPress={handleRegister}
-          disabled={loading}
+          disabled={loading || !agreedToTerms}
         >
           {loading ? (
             <ActivityIndicator size="small" color="#fff" />
@@ -181,6 +210,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 10,
   },
+  // 3. 👈 NOVO: Estilo do botão desabilitado
+  buttonDisabled: {
+    backgroundColor: '#ccc',
+  },
   buttonText: {
     color: 'white',
     fontSize: 18,
@@ -194,5 +227,26 @@ const styles = StyleSheet.create({
     color: '#6200ee',
     fontSize: 16,
     marginTop: 10,
+  },
+  // 4. 👈 NOVOS: Estilos para o Checkbox e Links
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 20,
+    marginTop: 5,
+  },
+  checkbox: {
+    marginRight: 10,
+  },
+  checkboxLabel: {
+    flex: 1, // Permite que o texto quebre a linha
+    fontSize: 14,
+    color: '#555',
+  },
+  linkTextLGPD: { // Estilo específico para os links da LGPD
+    color: '#6200ee',
+    textDecorationLine: 'underline',
+    fontWeight: 'bold',
   },
 });
