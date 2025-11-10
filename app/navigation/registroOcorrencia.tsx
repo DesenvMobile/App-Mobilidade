@@ -136,7 +136,7 @@ export default function RegistroOcorrenciaScreen() {
       }
 
       const { data, error } = await supabase.storage
-        .from('ocorrencias-imagens')
+        .from('ocorrencia_imagens')
         .upload(fileName, uploadData, {
           contentType: contentType,
           upsert: false,
@@ -147,7 +147,7 @@ export default function RegistroOcorrenciaScreen() {
       }
 
       const { data: publicUrlData } = supabase.storage
-        .from('ocorrencias-imagens')
+        .from('ocorrencia_imagens')
         .getPublicUrl(data.path);
 
       return publicUrlData.publicUrl;
@@ -384,18 +384,21 @@ export default function RegistroOcorrenciaScreen() {
                     placeholder="Cep (opcional)"
                     style={styles.input}
                     value={manual.cep}
+                    placeholderTextColor="#888"
                     onChangeText={(t) => setManual({ ...manual, cep: t })}
                   />
                   <TextInput
                     placeholder="Rua"
                     style={styles.input}
                     value={manual.rua}
+                    placeholderTextColor="#888"
                     onChangeText={(t) => setManual({ ...manual, rua: t })}
                   />
                   <TextInput
                     placeholder="Número (opcional)"
                     style={styles.input}
                     value={manual.numero}
+                    placeholderTextColor="#888"
                     keyboardType="numeric"
                     onChangeText={(t) => setManual({ ...manual, numero: t })}
                   />
